@@ -54,7 +54,7 @@ function formatDate(value) {
 
 async function checkServerStatus() {
   try {
-    const res = await fetch(`${API_URL}/users`, { method: 'GET' });
+    const res = await fetch(`${API_URL}/health`, { method: 'GET' });
     isServerOnline = res.ok;
 
     if (!isServerOnline) {
@@ -100,7 +100,7 @@ async function updateBalance() {
   if (!isServerOnline) return;
 
   try {
-    const res = await fetch(`${API_URL}/users`);
+    const res = await fetch(`${API_URL}/health`);
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
     const users = await res.json();
