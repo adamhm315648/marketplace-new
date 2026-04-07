@@ -9,9 +9,11 @@ if (!userId) {
 let currentUserId = userId;
 
 // Determine API URL based on environment
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000'  // Local development
-  : 'https://marketplace-aw8b.onrender.com';  // Production Render URL
+const API_URL =
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000' // Local development
+    : 'https://marketplace-aw8b.onrender.com'; // Production Render URL
 
 let isServerOnline = true;
 let currentView = 'marketplace';
@@ -50,15 +52,16 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
-// Check if server is online on page load
 async function checkServerStatus() {
   try {
     const res = await fetch(`${API_URL}/users`, { method: 'GET' });
     isServerOnline = res.ok;
+
     if (!isServerOnline) {
       showMarketClosed();
     }
   } catch (error) {
+    console.error('Server status check failed:', error);
     isServerOnline = false;
     showMarketClosed();
   }
@@ -88,26 +91,25 @@ function showTransferError() {
 
 /* ------------------ LOAD USERS ------------------ */
 async function loadUsers() {
-  // Display current logged in user
   document.getElementById('currentUsername').textContent = `👤 ${username}`;
-  updateBalance();
+  await updateBalance();
 }
 
 /* ------------------ BALANCE ------------------ */
 async function updateBalance() {
   if (!isServerOnline) return;
-  
+
   try {
     const res = await fetch(`${API_URL}/users`);
-    if (!res.ok) throw new Error('Server offline');
-    const users = await res.json();
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-    const user = users.find(u => u.id === currentUserId); // Direct string comparison
+    const users = await res.json();
+    const user = users.find(u => String(u.id) === String(currentUserId));
 
     const balanceEl = document.getElementById('balance');
 
     if (!user) {
-      balanceEl.textContent = "User not found";
+      balanceEl.textContent = 'User not found';
       return;
     }
 
@@ -122,15 +124,15 @@ async function updateBalance() {
 /* ------------------ TRANSFER ------------------ */
 async function transfer() {
   if (!isServerOnline) {
-    alert("🔒 Market is closed. The marketplace server is currently offline. Please try again later.");
+    alert('🔒 Market is closed. The marketplace server is currently offline. Please try again later.');
     return;
   }
-  
+
   const toUsername = document.getElementById('toId').value.trim();
   const amount = Number(document.getElementById('amount').value);
 
-  if (!toUsername || !amount) {
-    alert("Enter valid username and amount");
+  if (!toUsername || Number.isNaN(amount) || amount <= 0) {
+    alert('Enter a valid username and amount');
     return;
   }
 
@@ -149,14 +151,14 @@ async function transfer() {
       const msg = await res.text();
       alert(msg);
     } else {
-      alert("✅ Transfer complete!");
+      alert('✅ Transfer complete!');
     }
 
-    updateBalance();
+    await updateBalance();
   } catch (error) {
     console.error('Transfer error:', error);
     isServerOnline = false;
-    alert("🔒 Market is closed. The marketplace server is currently offline. Please try again later.");
+    alert('🔒 Market is closed. The marketplace server is currently offline. Please try again later.');
     showMarketClosed();
   }
 }
@@ -164,20 +166,21 @@ async function transfer() {
 /* ------------------ MARKETPLACE ------------------ */
 async function loadItems() {
   if (!isServerOnline) return;
-  
+
   try {
     const res = await fetch(`${API_URL}/items`);
-    if (!res.ok) throw new Error('Server offline');
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
     const items = await res.json();
 
     const list = document.getElementById('items');
-    list.innerHTML = "";
+    list.innerHTML = '';
 
     items.forEach(item => {
       if (item.sold) return;
 
       const li = document.createElement('li');
-      
+
       const itemInfo = document.createElement('span');
       itemInfo.className = 'item-info';
       itemInfo.textContent = item.name;
@@ -191,8 +194,8 @@ async function loadItems() {
       const btn = document.createElement('button');
 
       if (isOwner) {
-        btn.textContent = "Delete";
-        btn.className = "btn btn-danger";
+        btn.textContent = 'Delete';
+        btn.className = 'btn btn-danger';
 
         btn.onclick = async () => {
           try {
@@ -209,21 +212,20 @@ async function loadItems() {
               const msg = await res.text();
               alert(msg);
             } else {
-              alert("✅ Item deleted!");
+              alert('✅ Item deleted!');
             }
 
-            loadItems();
+            await loadItems();
           } catch (error) {
             console.error('Delete error:', error);
-            alert("🔒 Market is closed. The marketplace server is currently offline.");
+            alert('🔒 Market is closed. The marketplace server is currently offline.');
             isServerOnline = false;
             showMarketClosed();
           }
         };
-
       } else {
-        btn.textContent = "Buy";
-        btn.className = "btn btn-success";
+        btn.textContent = 'Buy';
+        btn.className = 'btn btn-success';
 
         btn.onclick = async () => {
           try {
@@ -240,15 +242,17 @@ async function loadItems() {
               const msg = await res.text();
               alert(msg);
             } else {
-              alert("✅ Purchase successful!");
+              alert('✅ Purchase successful!');
             }
 
-            loadItems();
-            loadInventory();
-            updateBalance();
+            await loadItems();
+            if (currentView === 'inventory') {
+              await loadInventory();
+            }
+            await updateBalance();
           } catch (error) {
             console.error('Buy error:', error);
-            alert("🔒 Market is closed. The marketplace server is currently offline.");
+            alert('🔒 Market is closed. The marketplace server is currently offline.');
             isServerOnline = false;
             showMarketClosed();
           }
@@ -270,15 +274,15 @@ async function loadItems() {
 /* ------------------ ADD ITEM ------------------ */
 async function addItem() {
   if (!isServerOnline) {
-    alert("🔒 Market is closed. The marketplace server is currently offline. Please try again later.");
+    alert('🔒 Market is closed. The marketplace server is currently offline. Please try again later.');
     return;
   }
-  
+
   const name = document.getElementById('itemName').value.trim();
   const price = Number(document.getElementById('itemPrice').value);
 
-  if (!name || !price) {
-    alert("Enter valid item name and price");
+  if (!name || Number.isNaN(price) || price <= 0) {
+    alert('Enter a valid item name and price');
     return;
   }
 
@@ -299,16 +303,16 @@ async function addItem() {
       const msg = await res.text();
       alert(msg);
     } else {
-      alert("✅ Item listed!");
+      alert('✅ Item listed!');
       document.getElementById('itemName').value = '';
       document.getElementById('itemPrice').value = '';
     }
 
-    loadItems();
+    await loadItems();
   } catch (error) {
     console.error('Add item error:', error);
     isServerOnline = false;
-    alert("🔒 Market is closed. The marketplace server is currently offline. Please try again later.");
+    alert('🔒 Market is closed. The marketplace server is currently offline. Please try again later.');
     showMarketClosed();
   }
 }
@@ -318,8 +322,8 @@ async function loadInventory() {
   if (!isServerOnline) return;
 
   try {
-    const res = await fetch(`${API_URL}/inventory?buyerId=${currentUserId}`);
-    if (!res.ok) throw new Error('Server offline');
+    const res = await fetch(`${API_URL}/inventory?buyerId=${encodeURIComponent(currentUserId)}`);
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
     const inventoryItems = await res.json();
     const list = document.getElementById('inventoryItems');
@@ -353,7 +357,20 @@ async function loadInventory() {
 }
 
 /* ------------------ INIT ------------------ */
-checkServerStatus();
-loadUsers();
-loadItems();
-loadInventory();
+async function init() {
+  await checkServerStatus();
+
+  if (!isServerOnline) {
+    showTransferError();
+    return;
+  }
+
+  await loadUsers();
+  await loadItems();
+
+  if (currentView === 'inventory') {
+    await loadInventory();
+  }
+}
+
+init();
